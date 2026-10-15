@@ -18,7 +18,8 @@ logging.basicConfig(
     level=logging.INFO
 )
 
-BOT_TOKEN = os.environ.get("BOT_TOKEN")
+# ⚠️ এখানে আপনার Bot Token বসাবেন (কোটেশন মার্কের ভেতরে):
+BOT_TOKEN = "8822744038:AAGTRCgTmm0onsd7mJR13fxWtf79LuC7X4M"
 ADMIN_ID = 8164888241
 
 user_states = {}
@@ -289,8 +290,8 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
 def main():
-    if not BOT_TOKEN:
-        print("BOT_TOKEN is missing!")
+    if not BOT_TOKEN or BOT_TOKEN == "আপনার_টেলিগ্রাম_বট_টোকেন_এখানে_দিন":
+        print("ERROR: BOT_TOKEN is missing or not configured correctly!")
         return
 
     application = ApplicationBuilder().token(BOT_TOKEN).build()
