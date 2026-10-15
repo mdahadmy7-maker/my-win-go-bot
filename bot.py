@@ -19,7 +19,7 @@ logging.basicConfig(
 )
 
 # Railway-র Variables থেকে টোকেন নেওয়া
-BOT_TOKEN = os.environ.get("BOT_TOKEN")
+BOT_TOKEN = os.environ.get("8822744038:AAGTRCgTmm0onsd7mJR13fxWtf79LuC7X4M")
 ADMIN_ID = 8164888241
 
 user_states = {}
